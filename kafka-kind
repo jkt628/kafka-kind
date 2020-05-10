@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+PROG=${0##*/}
+uname=$(uname)
+LF=$'\n'
+bold=$(tput bold)
+normal=$(tput sgr0)
+
+trap "echo '$normal'" EXIT
+
+@() {
+	echo "$LF$bold""$@""$normal" >/dev/tty
+	"$@"
+}
+
+case $uname in
+	Darwin)
+		# route to docker-tuntap-osx
+		eval $(grep -E '^(local|host)[[:alnum:]]+=' docker-tuntap-osx/sbin/docker_tap_up.sh)
+		up="^$localTapInterface:.*UP"
+		ifconfig | grep -q "$up" || @ docker-tuntap-osx/sbin/docker_tap_up.sh
+		ifconfig | grep -q "$up" || {
+			echo >&2 -e "$localTapInterface: should be UP\nreinstall docker-tuntap-osx/sbin/docker_tap_install.sh"
+			exit 1
+		}
+		net=172.17.255/24
+		netstat -rn | grep -q "$net" || @ sudo route -v add $net $hostGateway
+		netstat -rn | grep -qE "$net\s+$hostGateway.*$localTapInterface" || {
+			echo >&2 "$net: should be routed through $localTapInterface"
+			exit 1
+		}
+		;;
+esac
+
+cd -P "$(dirname "$0")"
+
+@ kind create cluster --config kind-cluster.yaml --name kafka
+
+metallb=https://raw.githubusercontent.com/metallb/metallb/v0.9
+
+for f in \
+	[0-4][0-9]-*/*.yaml \
+	https://projectcontour.io/quickstart/contour.yaml \
+	$metallb/manifests/namespace.yaml \
+	$metallb/manifests/metallb.yaml \
+	[5-9][0-9]-*/*.yaml ;
+do
+	@ kubectl apply -f $f
+done
+
+@ helm install -n kafka -f kafka-value.yaml kafka confluentinc/cp-helm-charts
+@ helm install -n kafka -f cmak-value.yaml cmak stable/kafka-manager
+
+echo -n "$LF$bold"Waiting for schema registry...
+while ! curl -s http://schema.kafka/config |& fgrep -q compatibility; do
+	sleep 1
+	echo -n .
+done
+echo "$normal"
+
+# process samples
+
+schema() {
+	file=${1##*/}
+	jq -c '{"schema": tostring}' "$1" | @ curl -sS -X POST -H 'Content-Type: application/json' -d@- http://schema.kafka/subjects/${file/.avsc}/versions | jq .
+}
+
+topic() {
+	file=${1##*/}
+	topic=${file/.json*}
+	args=(--topic "$topic")
+	case "$topic" in
+		*)
+			producer=kafka-avro-console-producer
+			args+=(--broker-list kafka.kafka:9092 --property schema.registry.url=http://schema.kafka --property value.schema="$(jq -c . schemas/"$topic"-value.avsc)")
+			;;
+	esac
+	decompress "$1" | @ $producer "${args[@]}"
+}
+
+decompress() {
+	case "$1" in
+		*.xz) xz  -d -c "$1";;
+		*.bz) bunzip -c "$1";;
+		*.gz) gunzip -c "$1";;
+		*) cat "$1";;
+	esac
+}
+
+for arg; do
+	case "$arg" in
+		-h|--help)
+			cat <<EOF
+Usage $PROG [schemas|topics|all|schemas/*|topics/*]
+Additional parameters preload sample data for all or specified schemas and topics.
+EOF
+			;;
+		schemas|schemas/|all)
+			for f in schemas/*; do
+				schema "$f"
+			done
+			;;&
+		topics|topics/|all)
+			for f in topics/*; do
+				topic "$f"
+			done
+			;;
+		schemas/?*)
+			schema "$arg"
+			;;
+		topics/?*)
+			topic "$arg"
+			;;
+	esac
+done

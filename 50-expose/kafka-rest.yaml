@@ -1,0 +1,42 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kafka-rest
+  namespace: kafka
+  name: kafka-rest-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 8082
+    targetPort: 8082
+  selector:
+    app: cp-kafka-rest
+    release: kafka
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  labels:
+    app: kafka-rest
+  namespace: kafka
+  name: kafka-rest-route
+spec:
+  routes:
+  - services:
+    - name: kafka-rest-nodeport
+      port: 8082
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  labels:
+    app: kafka-rest
+  namespace: kafka
+  name: kafka-rest
+spec:
+  virtualhost:
+    fqdn: kafka-rest.kafka
+  includes:
+  - name: kafka-rest-route

@@ -1,0 +1,19 @@
+__defaults: &defaults
+  imageTag: 5.3.2
+  prometheus:
+    jmx:
+      enabled: false
+cp-zookeeper:
+  <<: *defaults
+cp-kafka:
+  <<: *defaults
+cp-schema-registry:
+  <<: *defaults
+cp-kafka-rest:
+  <<: *defaults
+cp-kafka-connect:
+  enabled: false
+cp-ksql-server:
+  enabled: false
+cp-control-center:
+  enabled: false

@@ -1,0 +1,18 @@
+{
+  "type": "record",
+  "name": "canary",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string"
+    },
+    {
+      "name": "bonus",
+      "type": "int"
+    },
+    {
+      "name": "weight",
+      "type": "float"
+    }
+  ]
+}

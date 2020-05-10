@@ -1,0 +1,55 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: schema-registry
+  namespace: kafka
+  name: schema-registry-nodeport
+spec:
+  type: NodePort
+  ports:
+  - port: 8081
+    targetPort: 8081
+  selector:
+    app: cp-schema-registry
+    release: kafka
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  labels:
+    app: schema-registry
+  namespace: kafka
+  name: schema-registry-route
+spec:
+  routes:
+  - services:
+    - name: schema-registry-nodeport
+      port: 8081
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  labels:
+    app: schema-registry
+  namespace: kafka
+  name: schema
+spec:
+  virtualhost:
+    fqdn: schema.kafka
+  includes:
+  - name: schema-registry-route
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  labels:
+    app: schema-registry
+  namespace: kafka
+  name: schema-registry
+spec:
+  virtualhost:
+    fqdn: schema-registry.kafka
+  includes:
+  - name: schema-registry-route
