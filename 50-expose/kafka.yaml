@@ -8,7 +8,7 @@ metadata:
   name: kafka-0
 spec:
   type: LoadBalancer
-  loadBalancerIP: 172.17.255.240
+  loadBalancerIP: 172.30.255.240
   ports:
   - name: kafka-plaintext
     port: 9092
@@ -28,7 +28,7 @@ metadata:
   name: kafka-1
 spec:
   type: LoadBalancer
-  loadBalancerIP: 172.17.255.241
+  loadBalancerIP: 172.30.255.241
   ports:
   - name: kafka-plaintext
     port: 9092
@@ -48,7 +48,7 @@ metadata:
   name: kafka-2
 spec:
   type: LoadBalancer
-  loadBalancerIP: 172.17.255.242
+  loadBalancerIP: 172.30.255.242
   ports:
   - name: kafka-plaintext
     port: 9092

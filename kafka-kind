@@ -12,6 +12,8 @@ trap "echo '$normal'" EXIT
 	"$@"
 }
 
+@ docker network create --driver=bridge --subnet=172.30.255.0/24 kind
+
 case $uname in
 	Darwin)
 		# route to docker-tuntap-osx
@@ -22,7 +24,7 @@ case $uname in
 			echo >&2 -e "$localTapInterface: should be UP\nreinstall docker-tuntap-osx/sbin/docker_tap_install.sh"
 			exit 1
 		}
-		net=172.17.255/24
+		net=172.30.255/24
 		netstat -rn | grep -q "$net" || @ sudo route -v add $net $hostGateway
 		netstat -rn | grep -qE "$net\s+$hostGateway.*$localTapInterface" || {
 			echo >&2 "$net: should be routed through $localTapInterface"
@@ -47,6 +49,7 @@ do
 	@ kubectl apply -f $f
 done
 
+@ kubectl patch daemonsets.apps -n projectcontour envoy -p "$(curl -sS https://kind.sigs.k8s.io/examples/ingress/contour/patch.json)"
 @ helm install -n kafka -f kafka-value.yaml kafka confluentinc/cp-helm-charts
 @ helm install -n kafka -f cmak-value.yaml cmak stable/kafka-manager
 

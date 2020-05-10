@@ -8,7 +8,7 @@ metadata:
   name: zookeeper-service
 spec:
   type: LoadBalancer
-  loadBalancerIP: 172.17.255.249
+  loadBalancerIP: 172.30.255.249
   ports:
   - name: zookeeper-port
     port: 2181
