@@ -3,6 +3,7 @@ apiVersion: projectcontour.io/v1
 kind: HTTPProxy
 metadata:
   labels:
+    release: cmak
     app: kafka-manager
   namespace: kafka
   name: cmak

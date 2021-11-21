@@ -1,0 +1,35 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: kafka
+containerdConfigPatches:
+- |-
+  [plugins."io.containerd.grpc.v1.cri".registry.mirrors."localhost:5000"]
+    endpoint = ["http://local-registry:5000"]
+# One control plane node and three "workers".
+#
+# While these will not add more real compute capacity and
+# have limited isolation, this can be useful for testing
+# rolling updates etc.
+#
+# The API-server and other control plane components will be
+# on the control-plane node.
+nodes:
+- role: control-plane
+  kubeadmConfigPatches:
+  - |
+    kind: InitConfiguration
+    nodeRegistration:
+      kubeletExtraArgs:
+        node-labels: "ingress-ready=true"
+  extraPortMappings:
+  # HTTP
+  - hostPort: 80
+    containerPort: 80
+    protocol: TCP
+  # HTTPS
+  - hostPort: 443
+    containerPort: 443
+    protocol: TCP
+- role: worker
+- role: worker
+- role: worker

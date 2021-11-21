@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+LF=$'\n'
+bold=$(tput bold)
+normal=$(tput sgr0)
+repo_image_tag='^([^/]+)(.+):(.+)'
+
+[[ "${BASH_VERSINFO[5]}" =~ msys ]] && tty=/dev/stderr || tty=/dev/tty
+
+trap 'echo "$normal" >$tty' EXIT
+
+@() {
+	echo "$LF$bold$*$normal" >$tty
+	"$@"
+}
+
+preload() {
+	local image
+	yq -r '.spec.template.spec.containers[].image' 2>/dev/null | tr -d $'\r' | while read -r image; do
+		local local=localhost:5000/$image
+		if [[ "$local" =~ $repo_image_tag ]]; then
+			local version="\"${BASH_REMATCH[3]}\""
+			[[ $(curl -sS "${BASH_REMATCH[1]}/v2${BASH_REMATCH[2]}/tags/list") =~ $version ]] && continue
+		fi
+		[[ -n "$(docker images -q --filter=reference="$image")" ]] || @ docker pull "$image"
+		@ docker tag "$image" "$local"
+		@ docker push "$local"
+	done
+}
+
+template=$(</dev/stdin)
+
+preload <<<"$template" >$tty
+
+sed -E -e 's,[[:space:]]image:[^[:alnum:]]+,&localhost:5000/,' -e '/imagePullPolicy/s/IfNotPresent/Always/' <<<"$template"

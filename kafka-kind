@@ -1,43 +1,90 @@
 #!/usr/bin/env bash
+# configurables
+: "${MAXWAIT:=120}"
+
 PROG=${0##*/}
-uname=$(uname)
 LF=$'\n'
 bold=$(tput bold)
 normal=$(tput sgr0)
 
-trap "echo '$normal'" EXIT
+trap 'echo "$normal" >/dev/tty' EXIT
 
 @() {
-	echo "$LF$bold""$@""$normal" >/dev/tty
+	echo "$LF$bold$*$normal" >/dev/tty
 	"$@"
 }
 
-@ docker network create --driver=bridge --subnet=172.30.255.0/24 kind
+cd -P "$(dirname "$0")" || exit 1
 
-case $uname in
-	Darwin)
-		# route to docker-tuntap-osx
-		eval $(grep -E '^(local|host)[[:alnum:]]+=' docker-tuntap-osx/sbin/docker_tap_up.sh)
-		up="^$localTapInterface:.*UP"
-		ifconfig | grep -q "$up" || @ docker-tuntap-osx/sbin/docker_tap_up.sh
-		ifconfig | grep -q "$up" || {
-			echo >&2 -e "$localTapInterface: should be UP\nreinstall docker-tuntap-osx/sbin/docker_tap_install.sh"
-			exit 1
-		}
-		net=172.30.255/24
-		netstat -rn | grep -q "$net" || @ sudo route -v add $net $hostGateway
-		netstat -rn | grep -qE "$net\s+$hostGateway.*$localTapInterface" || {
-			echo >&2 "$net: should be routed through $localTapInterface"
-			exit 1
-		}
-		;;
-esac
+if [[ "$1" = down ]]; then
+  ! netstat -rn | grep -qE '172.23.150.224.*(wg|tun)[[:digit:]]' || @ wg-quick down wireguard/wg0.conf
+  @ kind delete cluster --name kafka
+	@ docker-compose down
+	exit 0
+fi
 
-cd -P "$(dirname "$0")"
+set +o | grep -qF '+o verbose' || debug="--debug"
+http='^https?://'
+portForwardFailed='already in use| configuration '
+installOrUpgrade='^(install|upgrade)$'
+digits='^[[:digit:]]+$'
 
-@ kind create cluster --config kind-cluster.yaml --name kafka
+# redirects
+helm=$(which helm)
+kubectl=$(which kubectl)
 
-metallb=https://raw.githubusercontent.com/metallb/metallb/v0.9
+helm() {
+	if [[ ! "$1" =~ $installOrUpgrade ]]; then
+		$helm "$@"
+		return
+	fi
+	"$helm" $debug "$@" --post-renderer ./render-local-registry
+}
+
+kubectl() {
+	if [[ "$1" == apply ]]; then
+		local -a cmd
+		if [[ "$3" =~ $http ]]; then
+			cmd=(curl -sSL "$3")
+		else
+			cmd=(cat "$3")
+		fi
+		"${cmd[@]}" | ./render-local-registry | "$kubectl" apply -f -
+		return
+	fi
+	if [[ "$1" != port-forward ]]; then
+		"$kubectl" "$@"
+		return
+	fi
+	while ((1)); do
+		[[ $("$kubectl" "$@" 2>&1) =~ $portForwardFailed ]] && return
+		sleep 1
+	done
+}
+
+wait_for() {
+	local stop=$((EPOCHSECONDS + MAXWAIT))
+	if [[ "$1" =~ $digits ]]; then
+		stop=$((EPOCHSECONDS + $1))
+		shift
+	fi
+	while ! $1; do
+		sleep 1
+		echo -n .
+		if ((EPOCHSECONDS > stop)); then
+			echo >&2 -n ' failed!'
+			return 1
+		fi
+	done
+}
+
+@ docker-compose up -d
+
+netstat -rn | grep -qF 172.23.150.224 || @ wg-quick up wireguard/wg0.conf
+
+KIND_EXPERIMENTAL_DOCKER_NETWORK=kafka-kind_default @ kind create cluster --config kafka-cluster.yaml
+
+metallb=https://raw.githubusercontent.com/metallb/metallb/v0.9 # i've had little luck with 0.10+
 
 for f in \
 	[0-4][0-9]-*/*.yaml \
@@ -46,35 +93,33 @@ for f in \
 	$metallb/manifests/metallb.yaml \
 	[5-9][0-9]-*/*.yaml ;
 do
-	@ kubectl apply -f $f
+	@ kubectl apply -f "$f"
 done
 
 @ kubectl patch daemonsets.apps -n projectcontour envoy -p "$(curl -sS https://kind.sigs.k8s.io/examples/ingress/contour/patch.json)"
-@ helm install -n kafka -f kafka-value.yaml kafka confluentinc/cp-helm-charts
-@ helm install -n kafka -f cmak-value.yaml cmak stable/kafka-manager
+@ helm upgrade --install -n kafka -f kafka-value.yaml kafka confluentinc/cp-helm-charts
+@ helm upgrade --install -n kafka -f cmak-value.yaml cmak stable/kafka-manager
 
 echo -n "$LF$bold"Waiting for schema registry...
-while ! curl -s http://schema.kafka/config |& fgrep -q compatibility; do
-	sleep 1
-	echo -n .
-done
+schema_registry() { curl -s http://kafka-cp-schema-registry.kafka/config |& grep -qF compatibility; }
+wait_for schema_registry
 echo "$normal"
 
 # process samples
 
 schema() {
 	file=${1##*/}
-	jq -c '{"schema": tostring}' "$1" | @ curl -sS -X POST -H 'Content-Type: application/json' -d@- http://schema.kafka/subjects/${file/.avsc}/versions | jq .
+	jq -c '{"schema": tostring}' "$1" | @ curl -sSf -X POST -H 'Content-Type: application/json' -d@- http://schema.kafka/subjects/"${file/.avsc}"/versions | jq .
 }
 
 topic() {
 	file=${1##*/}
 	topic=${file/.json*}
-	args=(--topic "$topic")
+	args=(--bootstrap-server kafka-cp-kafka-headless.kafka:9092 --topic "$topic")
 	case "$topic" in
 		*)
 			producer=kafka-avro-console-producer
-			args+=(--broker-list kafka.kafka:9092 --property schema.registry.url=http://schema.kafka --property value.schema="$(jq -c . schemas/"$topic"-value.avsc)")
+			args+=(--property schema.registry.url=http://kafka-cp-schema-registry.kafka --property value.schema="$(jq -c . schemas/"$topic"-value.avsc)")
 			;;
 	esac
 	decompress "$1" | @ $producer "${args[@]}"

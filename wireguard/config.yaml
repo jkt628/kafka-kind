@@ -1,0 +1,8 @@
+storage: file:///wireguard/data
+wireguard:
+  privateKey: 'aHVoHnXvIReZT6tkbdcwC7KcpJKexqVBoaWFUrYmZ3U='
+vpn:
+  cidr: '172.23.150.241/29'
+  allowedIPs:
+    - '172.23.150.240/29'
+    - '172.23.150.224/28'
