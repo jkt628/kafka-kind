@@ -4,7 +4,15 @@ bold=$(tput bold)
 normal=$(tput sgr0)
 repo_image_tag='^([^/]+)(.+):(.+)'
 
-[[ "${BASH_VERSINFO[5]}" =~ msys ]] && tty=/dev/stderr || tty=/dev/tty
+template=$(</dev/stdin)
+
+if ! [[ "${BASH_VERSINFO[5]}" =~ msys ]]; then
+	tty=/dev/tty
+elif [[ "$template" =~ 'heritage: Helm' ]]; then
+	tty=/dev/console
+else
+	tty=/dev/stderr
+fi
 
 trap 'echo "$normal" >$tty' EXIT
 
@@ -26,8 +34,6 @@ preload() {
 		@ docker push "$local"
 	done
 }
-
-template=$(</dev/stdin)
 
 preload <<<"$template" >$tty
 
