@@ -1,0 +1,53 @@
+version: '2.4'
+
+services:
+  local-registry:
+    image: registry:2
+    container_name: local-registry
+    network_mode: bridge
+    labels:
+      - networks=kafka-kind_default
+      - ipv4_addresses=172.23.150.237
+    volumes:
+      - ./registry:/var/lib/registry
+    ports:
+      - 5000:5000
+
+  network-connect:
+    image: k911/docker-client
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./network-connect:/tmp/network-connect:ro
+    depends_on:
+      - local-registry
+    command: /bin/bash /tmp/network-connect
+
+  wg-access-server:
+    image: place1/wg-access-server:0.2.5
+    cap_add:
+      - NET_ADMIN
+    volumes:
+      - ./wireguard:/wireguard
+    environment:
+      CONFIG: /wireguard/config.yaml
+    ports:
+      - "8000:8000/tcp"
+      - "51820:51820/udp"
+    devices:
+      - "/dev/net/tun:/dev/net/tun"
+    networks:
+      default:
+        ipv4_address: 172.23.150.238
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.23.150.224/28
+          aux_addresses:
+            kafka-cp-kafka-0.kafka-cp-kafka-headless.kafka: 172.23.150.230
+            kafka-cp-kafka-1.kafka-cp-kafka-headless.kafka: 172.23.150.231
+            kafka-cp-kafka-2.kafka-cp-kafka-headless.kafka: 172.23.150.232
+            zookeeper.kafka: 172.23.150.233
+            local-registry: 172.23.150.237
+            wg-access-server: 172.23.150.238

@@ -1,0 +1,3 @@
+# registry is backing store for local-registry
+registry/
+tmp/

@@ -1,0 +1,8 @@
+
+# kafka-kind
+172.23.150.225	kafka-cp-kafka-rest.kafka kafka-rest.kafka kafka-cp-schema-registry.kafka schema.kafka cmak.kafka kafka-cp-kafka-connect.kafka connect.kafka
+172.23.150.230	kafka-cp-kafka-0.kafka-cp-kafka-headless.kafka kafka-cp-kafka-headless.kafka kafka.kafka
+172.23.150.231	kafka-cp-kafka-1.kafka-cp-kafka-headless.kafka
+172.23.150.232	kafka-cp-kafka-2.kafka-cp-kafka-headless.kafka
+172.23.150.233	kafka-cp-zookeeper-0.kafka-cp-zookeeper-headless.kafka kafka-cp-zookeeper-0.kafka-cp-zookeeper-headless zookeeper.kafka
+172.23.150.238  kafka-wg-access-server
