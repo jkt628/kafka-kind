@@ -1,3 +1,6 @@
+image:
+  repository: hlebalbau/kafka-manager
+  tag: stable
 zkHosts: kafka-cp-zookeeper-0.kafka-cp-zookeeper-headless:2181,kafka-cp-zookeeper-1.kafka-cp-zookeeper-headless:2181
 clusters:
 - name: kafka
