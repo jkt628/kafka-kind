@@ -3,12 +3,14 @@ LF=$'\n'
 bold=$(tput bold)
 normal=$(tput sgr0)
 repo_image_tag='^([^/]+)(.+):(.+)'
+helm='# Source: .+\.yaml'
 
 template=$(</dev/stdin)
 
 if ! [[ "${BASH_VERSINFO[5]}" =~ msys ]]; then
 	tty=/dev/tty
-elif [[ "$template" =~ 'heritage: Helm' ]]; then
+# Microsoft Windows is weird
+elif [[ "$template" =~ $helm ]]; then
 	tty=/dev/console
 else
 	tty=/dev/stderr
