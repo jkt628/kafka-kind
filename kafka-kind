@@ -62,16 +62,26 @@ kubectl() {
 	done
 }
 
+if ((BASH_VERSINFO[0] >= 5)); then
+	EPOCHSECONDS() {
+		echo "$EPOCHSECONDS"
+	}
+else
+	EPOCHSECONDS() {
+		date +%s
+	}
+fi
+
 wait_for() {
-	local stop=$((EPOCHSECONDS + MAXWAIT))
+	local stop=$(($(EPOCHSECONDS) + MAXWAIT))
 	if [[ "$1" =~ $digits ]]; then
-		stop=$((EPOCHSECONDS + $1))
+		stop=$(($(EPOCHSECONDS) + $1))
 		shift
 	fi
 	while ! $1; do
 		sleep 1
 		echo -n .
-		if ((EPOCHSECONDS > stop)); then
+		if (($(EPOCHSECONDS) > stop)); then
 			echo >&2 -n ' failed!'
 			return 1
 		fi
