@@ -3,24 +3,13 @@ version: '2.4'
 services:
   local-registry:
     image: registry:2
-    container_name: local-registry
-    network_mode: bridge
-    labels:
-      - networks=kafka-kind_default
-      - ipv4_addresses=172.23.150.237
+    networks:
+      default:
+        ipv4_address: 172.23.150.237
     volumes:
       - ./registry:/var/lib/registry
     ports:
       - 5000:5000
-
-  network-connect:
-    image: k911/docker-client
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./network-connect:/tmp/network-connect:ro
-    depends_on:
-      - local-registry
-    command: /bin/bash /tmp/network-connect
 
   wg-access-server:
     image: place1/wg-access-server:0.2.5
