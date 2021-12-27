@@ -42,12 +42,13 @@ helm() {
 }
 
 kubectl() {
-	if [[ "$1" == apply ]]; then
+	if [[ "$1" == apply && "$2" == -f ]]; then
+	  shift 2
 		local -a cmd
-		if [[ "$3" =~ $http ]]; then
-			cmd=(curl -sSL "$3")
+		if [[ "$1" =~ $http ]]; then
+			cmd=(curl -sSL "$1")
 		else
-			cmd=(cat "$3")
+			cmd=(cat "$@")
 		fi
 		"${cmd[@]}" | ./render-local-registry | "$kubectl" apply -f -
 		return
@@ -94,21 +95,12 @@ netstat -rn | grep -qF 172.23.150.224 || @ wg-quick up wireguard/wg0.conf
 
 KIND_EXPERIMENTAL_DOCKER_NETWORK=kafka-kind_default @ kind create cluster --config kafka-cluster.yaml
 
-metallb=https://raw.githubusercontent.com/metallb/metallb/v0.9 # i've had little luck with 0.10+
-
-for f in \
-	[0-4][0-9]-*/*.yaml \
-	https://projectcontour.io/quickstart/contour.yaml \
-	$metallb/manifests/namespace.yaml \
-	$metallb/manifests/metallb.yaml \
-	[5-9][0-9]-*/*.yaml ;
-do
-	@ kubectl apply -f "$f"
-done
-
+@ kubectl apply -f https://projectcontour.io/quickstart/contour.yaml
 @ kubectl patch daemonsets.apps -n projectcontour envoy -p "$(curl -sS https://kind.sigs.k8s.io/examples/ingress/contour/patch.json)"
-@ helm upgrade --install -n kafka -f kafka-value.yaml kafka confluentinc/cp-helm-charts
-@ helm upgrade --install -n kafka -f cmak-value.yaml cmak stable/kafka-manager
+@ helm upgrade --install -n metallb --create-namespace -f metallb-value.yaml metallb metallb/metallb
+@ helm upgrade --install -n kafka --create-namespace -f kafka-value.yaml kafka confluentinc/cp-helm-charts
+@ helm upgrade --install -n kafka --create-namespace -f cmak-value.yaml cmak stable/kafka-manager
+@ kubectl apply -f [5-9][0-9]-*/*.yaml
 
 echo -n "$LF$bold"Waiting for schema registry...
 schema_registry() { curl -s http://kafka-cp-schema-registry.kafka/config |& grep -qF compatibility; }

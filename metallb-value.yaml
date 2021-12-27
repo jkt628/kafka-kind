@@ -1,0 +1,6 @@
+configInline:
+  address-pools:
+    - name: kafka
+      protocol: layer2
+      addresses:
+      - 172.23.150.225-172.23.150.238

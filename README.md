@@ -21,7 +21,7 @@ that said, this is designed to run with bash which is provided by git so give it
 
 * install [Chocolatey](https://chocolatey.org/install)
 * install packages in an [Administrator shell](https://superuser.com/questions/968214/open-cmd-as-admin-with-windowsr-shortcut)
-* download (Confluent Platform)[https://packages.confluent.io/archive/6.1/confluent-6.1.1.zip] and extract to `C:\tools`.
+* download [Confluent Platform](https://packages.confluent.io/archive/6.1/confluent-6.1.1.zip) and extract to `C:\tools`.
 
   ```bat
   choco install \
@@ -80,6 +80,7 @@ because of the multiple but distinct personalities that is MS Windows with WSL2 
 
   ```bash
   helm repo add confluentinc https://confluentinc.github.io/cp-helm-charts
+  helm repo add metallb https://metallb.github.io/metallb
   helm repo add stable https://charts.helm.sh/stable
   ```
 
