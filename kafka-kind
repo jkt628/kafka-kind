@@ -95,8 +95,7 @@ netstat -rn | grep -qF 172.23.150.224 || @ wg-quick up wireguard/wg0.conf
 
 KIND_EXPERIMENTAL_DOCKER_NETWORK=kafka-kind_default @ kind create cluster --config kafka-cluster.yaml
 
-@ kubectl apply -f https://projectcontour.io/quickstart/contour.yaml
-@ kubectl patch daemonsets.apps -n projectcontour envoy -p "$(curl -sS https://kind.sigs.k8s.io/examples/ingress/contour/patch.json)"
+@ helm upgrade --install -n contour --create-namespace -f contour-value.yaml contour bitnami/contour
 @ helm upgrade --install -n metallb --create-namespace -f metallb-value.yaml metallb metallb/metallb
 @ helm upgrade --install -n kafka --create-namespace -f kafka-value.yaml kafka confluentinc/cp-helm-charts
 @ helm upgrade --install -n kafka --create-namespace -f cmak-value.yaml cmak stable/kafka-manager

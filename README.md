@@ -79,6 +79,7 @@ because of the multiple but distinct personalities that is MS Windows with WSL2 
 ### All
 
   ```bash
+  helm repo add bitnami https://charts.bitnami.com/bitnami
   helm repo add confluentinc https://confluentinc.github.io/cp-helm-charts
   helm repo add metallb https://metallb.github.io/metallb
   helm repo add stable https://charts.helm.sh/stable
